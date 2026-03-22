@@ -64,7 +64,7 @@ class PlotEqualTo(PlotFilterBase):
     @override
     def apply(self, df: "pd.DataFrame") -> "pd.DataFrame":
         try:
-            target = float(self.target)
+            target: float | str = float(self.target)
         except ValueError:
             target = self.target
 
@@ -76,7 +76,7 @@ class PlotNotEqualTo(PlotFilterBase):
     @override
     def apply(self, df: "pd.DataFrame") -> "pd.DataFrame":
         try:
-            target = float(self.target)
+            target: float | str = float(self.target)
         except ValueError:
             target = self.target
 
@@ -192,9 +192,9 @@ def _convert_inf_nan_strings(data: list[dict[str, object]]) -> list[dict[str, ob
 
     This handles the case where JSON serialization represents inf/nan as strings.
     """
-    converted_data = []
+    converted_data: list[dict[str, object]] = []
     for record in data:
-        converted_record = {}
+        converted_record: dict[str, object] = {}
         for key, value in record.items():
             if isinstance(value, str):
                 if value in ["inf", "-inf", "nan"]:

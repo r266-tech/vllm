@@ -17,6 +17,7 @@ import regex as re
 from tqdm.asyncio import tqdm
 
 AIOHTTP_TIMEOUT = aiohttp.ClientTimeout(total=6 * 60 * 60)
+JSONDict = dict[str, Any]
 
 
 class StreamedResponseHandler:
@@ -73,7 +74,7 @@ class RequestFuncInput:
     logprobs: int | None = None
     extra_headers: dict | None = None
     extra_body: dict | None = None
-    multi_modal_content: dict | list[dict] | None = None
+    multi_modal_content: JSONDict | list[JSONDict] | None = None
     ignore_eos: bool = False
     language: str | None = None
     request_id: str | None = None
@@ -263,16 +264,20 @@ async def async_request_openai_completions(
 def _get_chat_content(
     request_func_input: RequestFuncInput,
     mm_position: Literal["first", "last"] = "last",
-) -> list[dict[str, Any]]:
-    text_contents = [{"type": "text", "text": request_func_input.prompt}]
+) -> list[JSONDict]:
+    assert isinstance(request_func_input.prompt, str)
 
-    mm_contents = []
+    text_contents: list[JSONDict] = [
+        {"type": "text", "text": request_func_input.prompt}
+    ]
+
+    mm_contents: list[JSONDict] = []
     if request_func_input.multi_modal_content:
         mm_content = request_func_input.multi_modal_content
         if isinstance(mm_content, list):
-            mm_contents.extend(request_func_input.multi_modal_content)
+            mm_contents.extend(mm_content)
         elif isinstance(mm_content, dict):
-            mm_contents.append(request_func_input.multi_modal_content)
+            mm_contents.append(mm_content)
         else:
             raise TypeError(
                 "multi_modal_content must be a dict or list[dict] for openai-chat"
@@ -761,7 +766,7 @@ async def async_request_vllm_pooling(
         "truncate_prompt_tokens": -1,
     }
 
-    payload = payload | request_func_input.prompt
+    payload = payload | request_func_input.prompt  # type: ignore[operator]
 
     _update_payload_common(payload, request_func_input)
 
