@@ -113,7 +113,27 @@ class KimiK25ProcessingInfo(BaseProcessingInfo):
             trust_remote_code=self.ctx.model_config.trust_remote_code,
         )
 
-        self.media_token_id = media_token_id = hf_config.media_placeholder_token_id
+        # Resolve token ID from the tokenizer rather than blindly trusting
+        # hf_config, because some models (e.g. moonshotai/Kimi-K2.5) ship a
+        # config.json whose media_placeholder_token_id disagrees with the
+        # tokenizer after auto-conversion from tiktoken to fast tokenizer.
+        config_token_id = hf_config.media_placeholder_token_id
+        resolved_token_id = tokenizer.convert_tokens_to_ids("<|media_pad|>")
+        if isinstance(resolved_token_id, int) and resolved_token_id != config_token_id:
+            logger.warning(
+                "Kimi-K2.5 config.media_placeholder_token_id (%d) disagrees "
+                "with tokenizer mapping for <|media_pad|> (%d). "
+                "Using tokenizer value.",
+                config_token_id,
+                resolved_token_id,
+            )
+            media_token_id = resolved_token_id
+            # Patch config so downstream code also sees the correct ID.
+            hf_config.media_placeholder_token_id = resolved_token_id
+        else:
+            media_token_id = config_token_id
+
+        self.media_token_id = media_token_id
         self.media_token = tokenizer.decode(media_token_id)
 
         self.image_processor = image_processor
@@ -232,8 +252,7 @@ class KimiK25MultiModalProcessor(BaseMultiModalProcessor[KimiK25ProcessingInfo])
         hf_processor_mm_kwargs: Mapping[str, Any],
         out_mm_kwargs: MultiModalKwargsItems,
     ) -> Sequence[PromptUpdate]:
-        hf_config = self.info.get_hf_config()
-        media_token_id = hf_config.media_placeholder_token_id
+        media_token_id = self.info.media_token_id
 
         def get_replacement(item_idx: int):
             media = mm_items.get_items("vision_chunk", (VisionChunkProcessorItems,))
