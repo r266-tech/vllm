@@ -119,7 +119,13 @@ class KimiK25ProcessingInfo(BaseProcessingInfo):
         # tokenizer after auto-conversion from tiktoken to fast tokenizer.
         config_token_id = hf_config.media_placeholder_token_id
         resolved_token_id = tokenizer.convert_tokens_to_ids("<|media_pad|>")
-        if isinstance(resolved_token_id, int) and resolved_token_id != config_token_id:
+        # Guard against the token not existing in the vocabulary, in which
+        # case convert_tokens_to_ids returns unk_token_id.
+        is_valid_resolved = (
+            isinstance(resolved_token_id, int)
+            and (tokenizer.unk_token_id is None
+                 or resolved_token_id != tokenizer.unk_token_id))
+        if is_valid_resolved and resolved_token_id != config_token_id:
             logger.warning(
                 "Kimi-K2.5 config.media_placeholder_token_id (%d) disagrees "
                 "with tokenizer mapping for <|media_pad|> (%d). "
