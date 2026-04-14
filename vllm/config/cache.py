@@ -252,9 +252,17 @@ class CacheConfig:
         return cache_dtype
 
     def __post_init__(self):
-        if self.prefix_caching_hash_algo in ("xxhash", "xxhash_cbor"):
+        if self.enable_prefix_caching and self.prefix_caching_hash_algo in (
+                "xxhash", "xxhash_cbor"):
             try:
-                import xxhash  # noqa: F401
+                import xxhash
+                if not hasattr(xxhash, "xxh3_128_digest"):
+                    raise ImportError(
+                        f"xxhash >= 3.0.0 is required when "
+                        f"`prefix_caching_hash_algo` is set to "
+                        f"'{self.prefix_caching_hash_algo}'. "
+                        f"Please upgrade it with: `pip install -U xxhash`"
+                    )
             except ModuleNotFoundError as e:
                 if e.name == "xxhash":
                     raise ImportError(
