@@ -250,3 +250,15 @@ class CacheConfig:
                 str(cache_dtype),
             )
         return cache_dtype
+
+    def __post_init__(self):
+        if self.prefix_caching_hash_algo in ("xxhash", "xxhash_cbor"):
+            try:
+                import xxhash  # noqa: F401
+            except ImportError as e:
+                raise ImportError(
+                    f"The `xxhash` package is required when "
+                    f"`prefix_caching_hash_algo` is set to "
+                    f"'{self.prefix_caching_hash_algo}'. "
+                    f"Install it with: `pip install xxhash`"
+                ) from e
