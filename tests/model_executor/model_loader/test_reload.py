@@ -257,3 +257,22 @@ def test_online_quantize_reload(
         mul_perp = llm.generate_prompt_perplexity(["3 4 = 12"], mask=["3 4 ="])[0]
         add_perp = llm.generate_prompt_perplexity(["3 4 = 7"], mask=["3 4 ="])[0]
         assert add_perp < mul_perp
+
+
+def test_capture_layer_to_meta_skips_bias():
+    """Regression for #39663: bias parameters must be skipped by online loader.
+
+    Online FP8 quantization wraps all non-SKIP_TENSORS params through a
+    deferred load pipeline that never materialized bias tensors, silently
+    leaving them at zero for Qwen2/2.5/GPT-2/Phi (bias=True linear layers).
+    Fix is to add "bias" to SKIP_TENSORS so it takes the normal load path.
+    """
+    from vllm.model_executor.model_loader.reload.meta import SKIP_TENSORS
+
+    assert "bias" in SKIP_TENSORS
+
+    layer = torch.nn.Linear(2, 3, bias=True)
+    params, _buffers = capture_layer_to_meta(layer)
+
+    assert "weight" in params
+    assert "bias" not in params
